@@ -1,0 +1,209 @@
+// Implementation of the RSA public-key encryption algorithm
+// ECE4893/ECE8893, Fall 2012
+
+#include "gmpxx.h"
+#include <inttypes.h>
+#include <stdlib.h>
+#include <iostream>
+#include <stdio.h>
+//#include <string>
+#include <ctime>
+#include <cstdlib>
+#include <stdio.h>
+#define DEBUG
+
+using namespace std;
+
+
+//void RSA(int numbits,privateKey priv, publicKey pub, gmp_randclass& random);
+//void getRandom(mpz_t& num, int numbits, gmp_randclass& random);
+
+class privateKey{
+public:
+	mpz_t n;
+	mpz_t e;
+        
+	privateKey(){
+		mpz_init(n); mpz_init(e);
+	}
+	void encrypt(mpz_t& M, mpz_t& C){
+	   mpz_powm(C,M,e,n);
+	}
+
+	~privateKey(){
+		mpz_clear(n); mpz_clear(e);
+	}
+};
+
+class  publicKey{
+public:
+	mpz_t n;
+	mpz_t d;
+        
+  	publicKey(){
+	     mpz_init(n);
+      	     mpz_init(d);	
+ 	}
+	void encrypt(mpz_t& M, mpz_t& C){
+	   mpz_powm(C,M,d,n);	
+	}
+
+      ~publicKey(){
+		mpz_clear(n); 
+			mpz_clear(d);
+	}
+
+   // test these fuckers 	
+	bool operator==(const publicKey& rhs){
+	      return ((mpz_cmp(n,rhs.n) == 0) && (mpz_cmp(d,rhs.d)==0));
+
+
+        }
+
+        bool operator!=(const publicKey& rhs){
+	      return (!((*this) == rhs));
+        } 
+}; 
+
+void RSA(int numbits, publicKey& pub, privateKey& priv, gmp_randclass& random);
+void getRandom(mpz_t& num, int numbits, gmp_randclass& random);
+
+int main()
+{
+  // Your code here
+    //RSA(5);
+    //RSA(5);
+
+   int sz = 32; 
+   privateKey key;
+   mpz_t M,C, dec;
+   mpz_init(M);
+   mpz_init(C);
+   mpz_init(dec);
+   gmp_randclass random(gmp_randinit_default);
+   
+   random.seed(time(0));
+   privateKey priv;
+   publicKey pub;
+  
+   getRandom(M, 4, random);
+
+    
+   //RSA(sz, pub, priv, random); 
+   
+  // cout<<"priv n:  "<<priv.n<<endl;
+  // cout<<"priv e:  "<<priv.e<<endl;
+  // cout<<"pub  n:  "<<pub.n<<endl;
+  // cout<<"pub  d:  "<<pub.d<<endl;  
+ 
+   while(sz<= 1024){
+
+	RSA(sz,pub,priv,random);
+	cout<<"M is:  "<<M<<endl;
+	priv.encrypt(M,C);
+	cout<<"C:  "<<C<<endl;
+	pub.encrypt(C,dec);
+	cout<<"--------------------"<<endl;
+	sz*=2;
+
+   }
+  // cout<<"M is :  "<<M<<endl;
+  // priv.encrypt(M,C);
+  // cout<<"C:  "<<C<<endl;
+  // pub.encrypt(C,dec);
+  // cout<<"--------------------------------"<<endl;
+   //cout<<"C:  "<<C<<endl;
+   //cout<<"M decrypt  "<<dec<<endl;    
+   return 0;
+}
+
+void getRandom(mpz_t& num, int numbits, gmp_randclass& random){
+     
+     mpz_class num_class(0);
+     num_class = random.get_z_bits(numbits);
+     mpz_t temp;
+     mpz_init(temp);
+     mpz_add(num, num_class.get_mpz_t(), temp); 
+     mpz_clear(temp);
+}
+
+void RSA(int numbits,publicKey& pub, privateKey& priv, gmp_randclass& random){
+ //   static int first = 0;
+  //  static gmp_randclass random(gmp_randinit_default);
+   // if (first == 0){
+//	first  = 1;
+ //	random.seed(time(0));   
+//}
+    mpz_t phi,p,q,n,d,e,C,temp1,temp2;   //declare variables
+
+    
+    
+    mpz_init(p);  // initialzie all the variables
+    mpz_init(q);
+    mpz_init(n);
+    mpz_init(d);
+    mpz_init(e);
+   
+    mpz_init(phi); 
+    mpz_init(temp1);
+    mpz_init(temp2);
+   
+    while(true){
+	getRandom(p,numbits,random);
+        if (mpz_probab_prime_p(p,10)){
+	    break;
+        }
+
+    }
+    while(true){
+	getRandom(q,numbits,random);
+        if(mpz_probab_prime_p(q,10)){
+		if (mpz_cmp(p,q) != 0){ // if the number are unique
+			break;
+		}
+        }
+    }
+    
+
+   
+   
+
+    mpz_sub_ui(temp1, q,1);
+    mpz_sub_ui(temp2, p,1);
+    mpz_mul(phi,temp1,temp2);
+    mpz_mul(n,p,q);
+  
+
+   while(true){
+	getRandom(d, numbits*2,random);
+        if (mpz_cmp(d,phi) < 0){ //go until d is smaller than phi
+		mpz_gcd(temp1,d,phi);
+		if (mpz_cmp_d(temp1,1)==0){
+			break;
+		}
+        }
+
+   }
+
+   mpz_invert(e, d,phi);
+
+   mpz_add(pub.n,pub.n,n);
+   mpz_add(pub.d,pub.d,d);
+   mpz_add(priv.n,priv.n,n);
+   mpz_add(priv.e,priv.e,e);
+   
+#ifdef DEBUG
+	cout<<"sz"<<":  "<<numbits<<endl;
+	cout<<"p:   "<<p<<endl;
+	cout<<"q:   "<<q<<endl;
+	cout<<"n:   "<<n<<endl;
+	//cout<<"phi: "<<phi<<endl;
+	cout<<"d:   "<<d<<endl;
+	cout<<"e:   "<<e<<endl;
+	
+#endif
+ 
+  mpz_clear(p); mpz_clear(q); mpz_clear(n); mpz_clear(d);
+  mpz_clear(e); mpz_clear(phi); mpz_clear(temp1); mpz_clear(temp2);
+}
+
